@@ -1,51 +1,78 @@
 # frozen_string_literal: true
 
-require 'yaml'
-
-# This is a class for simulating Hangman game
+require_relative 'serialize_deserialize_mixins'
+# This class is for Hangman object
 class Hangman
-  ALLOWED_GUESSES = 10
+  include BasicSerializable
 
-  filenames = './google-10000-english-no-swears.txt'
-  array = File.readlines(filenames).map(&:chomp)
-  sampled_word = array.select { |word| word.length.between?(5, 12) }.sample
-  puts "Secret word is #{sampled_word}"
-  copy_sampled_word = Array.new(sampled_word.length, ' ')
-  guesses_letter = []
-  ALLOWED_GUESSES.times do |idx|
-    puts 'Game has the secret word. Please start your guess ...'
-    puts "#{ALLOWED_GUESSES - idx} guesses left"
-    puts 'Do you want to save the game? (y/n)'
-    answer = gets.chomp.downcase
+  attr_reader :secret_word
 
-    if answer == 'y'
-      state_to_serialize = {
-        secret_word: sampled_word,
-        demo_guessed_word: copy_sampled_word,
-        guessed_letter: guesses_letter,
-        remaining_guesses: ALLOWED_GUESSES - idx
-      }
+  def initialize(secret_word, guess_word, guess_letter, remaining_guess)
+    @secret_word = secret_word
+    @guess_word = guess_word
+    @guess_letter = guess_letter
+    @remaining_guess = remaining_guess
+  end
 
-      File.open('hangman_play_logs.yaml', 'w') do |file|
-        YAML.dump(state_to_serialize, file)
+  def won?
+    @guess_word.none?('_')
+  end
+
+  def lost?
+    @remaining_guess <= 0
+  end
+
+  def play
+    display_word
+    puts 'What letter to guess?'
+    process_guess(gets.chomp.downcase)
+  end
+
+  def plays
+    play until won? || lost?
+    display_word
+
+    if won?
+      puts "Wins! secret_word is #{@secret_word}"
+    else
+      puts "Lose! secret word is #{@secret_word}"
+    end
+  end
+
+  def display_word
+    puts "Word: #{@guess_word.join(' ')}"
+    puts "Already guessed letter: #{@guess_letter.inspect}"
+    puts "Guesses left: #{@remaining_guess}"
+  end
+
+  def process_guess(letter)
+    @guess_letter << letter
+    if @secret_word.include?(letter)
+      @secret_word.chars.each_with_index do |char, idx|
+        @guess_word[idx] = char if char == letter
       end
+
+      puts 'match!'
+    else
+      puts 'try another letter'
+      @remaining_guess -= 1
     end
-    guess = nil
-    loop do
-      guess = gets.chomp.downcase
-      break unless guesses_letter.include?(guess)
+  end
 
-      puts 'already try guess this character. guess a new character'
-    end
+  def self.random_word
+    File.readlines('./google-10000-english-no-swears.txt').map(&:chomp).select do |word|
+      word.length.between?(5, 12)
+    end.sample
+  end
 
-    guesses_letter << guess
-    puts "#{guess} is not in the word" unless sampled_word.include?(guess)
-    indexes = sampled_word.chars.each_with_index.select do |val, idx|
-      val == guess.downcase
-    end.map { |val, idx| idx }
-
-    indexes.each { |idx| copy_sampled_word[idx] = guess }
-    puts copy_sampled_word.join('')
-    break if copy_sampled_word.join.eql?(sampled_word)
+  def self.create_new_game
+    secret_word = random_word
+    guess_word = Array.new(secret_word.length, '_')
+    guess_letter = []
+    remaining_guess = 10
+    Hangman.new(secret_word, guess_word, guess_letter, remaining_guess)
   end
 end
+
+game = Hangman.create_new_game
+game.plays

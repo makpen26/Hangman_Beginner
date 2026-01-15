@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'serialize_deserialize_mixins'
-# This class is for Hangman object
+# This is class for Hangman
 class Hangman
   include BasicSerializable
 
@@ -23,9 +23,20 @@ class Hangman
   end
 
   def play
-    display_word
-    puts 'What letter to guess?'
-    process_guess(gets.chomp.downcase)
+    loop do
+      display_word
+      puts "enter 'save' to save the game. otherwise, make a guess"
+      input = gets.chomp.downcase
+
+      if input == 'save'
+        save_game
+        puts 'Game saved. continues playing'
+        next
+      else
+        process_guess(input)
+        break
+      end
+    end
   end
 
   def plays
@@ -72,7 +83,17 @@ class Hangman
     remaining_guess = 10
     Hangman.new(secret_word, guess_word, guess_letter, remaining_guess)
   end
-end
 
-game = Hangman.create_new_game
-game.plays
+  def save_game(filename = 'hangman_save.json')
+    json_string = serialize
+    File.write(filename, json_string)
+    puts "Game saved to #{filename}"
+  end
+
+  def self.load_game(filename = 'hangman_save.json')
+    json_string = File.read(filename)
+    game = Hangman.allocate
+    game.unserialize(json_string)
+    game
+  end
+end

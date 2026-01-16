@@ -97,3 +97,18 @@ class Hangman
     game
   end
 end
+
+puts 'welcome to Hangman!'
+puts '1. New game'
+puts '2. Load previously saved game'
+select = gets.chomp
+puts "selected #{select}"
+
+if select == '2' && File.exist?('hangman_save.json')
+  game = Hangman.load_game
+  puts 'Game loaded'
+else
+  game = Hangman.create_new_game
+end
+
+game.plays
